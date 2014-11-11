@@ -3,9 +3,7 @@ package fr.nesqwik.gamelab.entities;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.math.Intersector;
 import com.badlogic.gdx.math.Rectangle;
-import com.badlogic.gdx.math.Shape2D;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Disposable;
@@ -51,7 +49,7 @@ public abstract class Entity implements Disposable {
 		rectangle.x = x;
 		rectangle.y = y;
 	}
-	
+
 	public Rectangle getRectangle() {
 		return rectangle;
 	}
@@ -64,18 +62,23 @@ public abstract class Entity implements Disposable {
 		texture.dispose();
 	}
 
+	/**
+	 * test if entities are overlapsing or touching each other
+	 * @param that
+	 * @return true if is colliding, false else
+	 */
 	public boolean isCollideWith(Entity that) {
-		return this.rectangle.overlaps(that.rectangle);
+		return this.rectangle.overlaps(incrRect(that.rectangle));
 	}
 
-	public void checkCollides() {
-		Array<Entity> entities = game.getEntities();
-		for(int i = 0 ; i < entities.size ; i++) {
-			if(!this.equals(entities.get(i)) && this.isCollideWith(entities.get(i)))
-				this.collideWith(entities.get(i));
-		}
+	/**
+	 * Increments rect by 1 in 4 directions.
+	 * @return new incremented rectangle
+	 */
+	private Rectangle incrRect(Rectangle rect) {
+		return new Rectangle(rect.x - 1, rect.y - 1, rect.width + 2, rect.height + 2);
 	}
-	
+
 	public boolean isColliding(Rectangle theoricRect) {
 		Array<Entity> entities = game.getEntities();
 		for(int i = 0 ; i < entities.size ; i++) {
@@ -86,7 +89,7 @@ public abstract class Entity implements Disposable {
 		}
 		return false;
 	}
-	
+
 	/**
 	 * Déplace l'objet de speed.x pixel en x et speed.y pixel en y.
 	 * @param delta
@@ -95,60 +98,110 @@ public abstract class Entity implements Disposable {
 		setPosition((getPosition().x + speed.x*delta), (getPosition().y + speed.y*delta));
 	}
 
+	/**
+	 * Déplace l'objet de x pixel en x et y pixel en y.
+	 * @param delta
+	 */
+	public void move(float delta, float x, float y) {
+		setPosition((getPosition().x + x*delta), (getPosition().y + y*delta));
+	}
+
 	public void moveWithCollision(float delta) {
-		Vector2 affineSpeed = new Vector2();
-		affineSpeed.x = speed.x * delta;
-		affineSpeed.y = speed.y * delta;
-		
-		theoricPos = getPosition();
-		// affine X
-		
+		moveWithCollisionX(delta, speed.x);
+		moveWithCollisionY(delta, speed.y);
+	}
 
-		while(affineSpeed.x != 0 && !tryToMoveX(affineSpeed)) {
-			// reset theoric position to current position
-			theoricPos = getPosition();
-			// reduce the maxSpeed by 1
-			if (speed.x > 0) {
-				affineSpeed.x -= 1f * delta;
-			} else {
-				affineSpeed.x += 1f * delta;
-			}
+	public void moveWithCollisionX(float delta, float mx) {
+		if(Math.abs(mx) <= rectangle.width) {
+			// Move X
+			float moveX = getAffineMoveX(delta, mx);
+			move(delta, moveX, 0);
+			if(moveX != mx) checkCollidesX();
+		} else {
+			moveWithCollisionX(delta, mx/2);
+			moveWithCollisionX(delta, (mx+1)/2);
 		}
-		//if(Math.abs(affineSpeed.x) < 1f) affineSpeed.x = 0;
+	}
 
-		theoricPos = getPosition();
+
+	public void moveWithCollisionY(float delta, float my) {
+		if(Math.abs(my) <= rectangle.height) {
+			// Move X
+			float moveY = getAffineMoveY(delta, my);
+			move(delta, 0, moveY);
+			if(moveY != my) checkCollidesY();
+		} else {
+			moveWithCollisionY(delta, my/2);
+			moveWithCollisionY(delta, (my+1)/2);
+		}
+	}
+
+
+
+	private void checkCollidesY() {
+		Array<Entity> entities = game.getEntities();
+		for(int i = 0 ; i < entities.size ; i++) {
+			if(!this.equals(entities.get(i)) && this.isCollideWith(entities.get(i)))
+				this.collideYWith(entities.get(i));
+		}
+	}
+
+	private void checkCollidesX() {
+		Array<Entity> entities = game.getEntities();
+		for(int i = 0 ; i < entities.size ; i++) {
+			if(!this.equals(entities.get(i)) && this.isCollideWith(entities.get(i)))
+				this.collideXWith(entities.get(i));
+		}
+	}
+
+	private float getAffineMoveX(float delta, float mx) {
+		float affineSpeedX = mx;
+
 		// affine Y
-		while(affineSpeed.y != 0 && !tryToMoveY(affineSpeed)) {
+		while(affineSpeedX != 0 && !tryToMoveX(affineSpeedX, delta)) {
 			// reset theoric position to current position
-			theoricPos = getPosition();
 			// reduce the maxSpeed by 1
-			if (speed.y > 0) {
-				affineSpeed.y -= 1f;
+			if (mx > 0) {
+				affineSpeedX -= 1f;
 			} else {
-				affineSpeed.y += 1f;
+				affineSpeedX += 1f;
 			}
 		}
-		//if(Math.abs(affineSpeed.y) < 1f) affineSpeed.y = 0;
-		
-		speed.x = affineSpeed.x/delta;
-		speed.y = affineSpeed.y/delta;
-		move(delta);
+		return affineSpeedX;
 	}
 
-	private boolean tryToMoveX(Vector2 maxSpeed) {
-		Rectangle theoricRect = new Rectangle(	theoricPos.x + maxSpeed.x,
-												theoricPos.y,
-												rectangle.width, rectangle.height);
-		return !isColliding(theoricRect);
+	private float getAffineMoveY(float delta, float my) {
+		float affineSpeedY = my;
+
+		// affine Y
+		while(affineSpeedY != 0 && !tryToMoveY(affineSpeedY, delta)) {
+			// reset theoric position to current position
+			// reduce the maxSpeed by 1
+			if (my > 0) {
+				affineSpeedY -= 1f;
+			} else {
+				affineSpeedY += 1f;
+			}
+		}
+		return affineSpeedY;
 	}
-	
-	private boolean tryToMoveY(Vector2 maxSpeed) {
-		Rectangle theoricRect = new Rectangle(	theoricPos.x,
-												theoricPos.y + maxSpeed.y,
-												rectangle.width, rectangle.height);
+
+
+	private boolean tryToMoveX(float x, float delta) {
+		Rectangle theoricRect = new Rectangle(	getPosition().x + x * delta,
+				getPosition().y,
+				rectangle.width, rectangle.height);
 		return !isColliding(theoricRect);
 	}
 
-	protected abstract void collideWith(Entity e);
+	private boolean tryToMoveY(float y, float delta) {
+		Rectangle theoricRect = new Rectangle(	getPosition().x,
+				getPosition().y + y * delta,
+				rectangle.width, rectangle.height);
+		return !isColliding(theoricRect);
+	}
+
+	protected abstract void collideXWith(Entity e);
+	protected abstract void collideYWith(Entity e);
 	public abstract void update(float delta);
 }

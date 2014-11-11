@@ -42,6 +42,18 @@ public class GameLab implements ApplicationListener {
 		addEntity(new StaticBlockEntity(this, new Vector2(120, 300)));
 		addEntity(new StaticBlockEntity(this, new Vector2(140, 300)));
 		addEntity(new StaticBlockEntity(this, new Vector2(160, 300)));
+		
+		addEntity(new StaticBlockEntity(this, new Vector2(0, 200)));
+		addEntity(new StaticBlockEntity(this, new Vector2(20, 200)));
+		addEntity(new StaticBlockEntity(this, new Vector2(40, 200)));
+		addEntity(new StaticBlockEntity(this, new Vector2(60, 200)));
+		addEntity(new StaticBlockEntity(this, new Vector2(80, 200)));
+		addEntity(new StaticBlockEntity(this, new Vector2(100, 200)));
+		addEntity(new StaticBlockEntity(this, new Vector2(120, 200)));
+		addEntity(new StaticBlockEntity(this, new Vector2(140, 200)));
+		addEntity(new StaticBlockEntity(this, new Vector2(160, 200)));
+		
+		
 		//addEntity(new ArrowMoveEntity(this));
 		addEntity(new JumpEntity(this));
 	}
